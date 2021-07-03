@@ -1,5 +1,5 @@
 # Lyapunov
-Analysing Lyapunov exponent for ODE initial values
+Analysing Lyapunov exponent for ODE initial values.
 
 ## To use
 
@@ -8,3 +8,8 @@ Compile with OpenMP support, it will run (for a very long time) and keep updatin
 ## High res output
 
 ![2560x1440](lyapunov_l2.png)
+
+
+## Credits
+
+Thanks to Syralia for the ODE to study, and Sean Barrett for stb_image_write.h.
