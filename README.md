@@ -7,4 +7,4 @@ Compile with OpenMP support, it will run (for a very long time) and keep updatin
 
 ## High res output
 
-![2560x1440](https://github.com/lycium/FractalTracer/blob/master/lyapunov_l2.png)
+![2560x1440](lyapunov_l2.png)
