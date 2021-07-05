@@ -15,12 +15,11 @@ constexpr int    image_width  = image_scale * 16;
 constexpr int    image_height = image_scale * 9;
 constexpr double aspect_scale = image_height / double(image_width);
 
-constexpr double P0_width  = 36;
+constexpr double P0_width  = 48 * 16;
 constexpr double P0_height = P0_width * aspect_scale;
-constexpr double t_start   = 0;
-constexpr double t_end     = 20000;
-constexpr int    num_steps = 8192;
-constexpr double dt        = (t_end - t_start) / num_steps;
+constexpr double t_end     = 128 * 2;
+constexpr int    num_steps = t_end * 64;
+constexpr double dt        = t_end / num_steps;
 
 
 
@@ -56,7 +55,7 @@ using vec2d = vecn<2, double>;
 
 inline vec2d dPdt(const vec2d & P)
 {
-#if 0
+#if 1
 	// Lotka-Volterra
 	constexpr double alpha = 2 / 3.0;
 	constexpr double beta  = 4 / 3.0;
@@ -138,7 +137,7 @@ void main()
 			const double u01 = hash(pixel_idx) / double(1ull << 32);
 			const double u0 = u01 + pixel_offset.e[0];
 			const double u1 = u01 + pixel_offset.e[1];
-			const double P0_x =                     (x + triDist((u0 < 1) ? u0 : u0 - 1) + 0.5)  * (1.0 / image_width)  * P0_width - 7;
+			const double P0_x =                     (x + triDist((u0 < 1) ? u0 : u0 - 1) + 0.5)  * (1.0 / image_width)  * P0_width - P0_width * 0.5;
 			const double P0_y = (image_height - 1 - (y + triDist((u1 < 1) ? u1 : u1 - 1) + 0.5)) * (1.0 / image_height) * P0_height; // Y+ is down in screenspace
 
 			// Compute Lyapunov exponent, see https://en.wikipedia.org/wiki/Lyapunov_exponent
@@ -147,26 +146,30 @@ void main()
 			bool valid = true;
 			for (int step = 0; step < num_steps; ++step)
 			{
-				// Do prediction-correction steps to better approximate derivative at midpoint of interval
-				vec2d dPdt_current = dPdt(P);
-				for (int z = 0; z < 1; z++)
-				{
-					const vec2d P_mid = P + dPdt_current * (dt * 0.5);
-					dPdt_current = dPdt(P_mid);
-				}
+				const vec2d dPdt_0 = dPdt(P);
+				const vec2d dPdt_1 = dPdt(P + dPdt_0 * (dt * 0.5));
+#if 1
+				const vec2d dPdt_2 = dPdt(P + dPdt_1 * (dt * 0.5));
+				const vec2d dPdt_3 = dPdt(P + dPdt_2 * (dt * 1.0));
 
-				log_len_sum += std::log(vec2d::dot(dPdt_current, dPdt_current)); // TODO use log2?
+				// RK4 integration, see https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods
+				const vec2d dPdt_final = (dPdt_0 + dPdt_1 * 2 + dPdt_2 * 2 + dPdt_3) / 6;
+#else
+				const vec2d dPdt_final = dPdt_1; // Midpoint method
+#endif
+
+				log_len_sum += std::log(vec2d::dot(dPdt_final, dPdt_final)); // TODO use log2?
 				if (!std::isfinite(log_len_sum)) { valid = false; break; }
 
 				// Step to the next point
-				P = P + dPdt_current * dt;
+				P = P + dPdt_final * dt;
 			}
 
 			double v;
 			if (valid)
 			{
 				const double log_len_avg = std::abs(log_len_sum * (0.5 / num_steps));
-				v = std::exp(log_len_avg * 0.125) * 0.0005;
+				v = std::exp(log_len_avg * 0.09) * 0.0015;
 			}
 			else v = 0;
 
